@@ -4,21 +4,27 @@ from typing import Literal
 
 from dotenv import find_dotenv, load_dotenv
 from langchain_community.document_loaders import CSVLoader
-from langchain_community.vectorstores import DocArrayInMemorySearch
+from langchain_community.embeddings import FakeEmbeddings
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableBranch, RunnableLambda, RunnablePassthrough
+from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_google_genai._common import GoogleGenerativeAIError
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
 
 def bootstrap_env() -> None:
     load_dotenv(find_dotenv())
     if not os.getenv("GEMINI_API_KEY"):
-        raise ValueError("未读取到 GEMINI_API_KEY，请先在 .env 中配置")
+        raise ValueError("GEMINI_API_KEY not found. Please configure it in .env first.")
 
 
 def get_llm(temperature: float = 0.2) -> ChatGoogleGenerativeAI:
-    return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=temperature)
+    return ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash", 
+        temperature=temperature,
+        max_retries=3
+    )
 
 
 def section(title: str) -> None:
@@ -28,7 +34,7 @@ def section(title: str) -> None:
 
 
 def exercise_basic_prompt(llm: ChatGoogleGenerativeAI) -> None:
-    section("[SKP-1] PromptTemplate + 基础链")
+    section("[SKP-1] PromptTemplate + Basic Chain")
     prompt = ChatPromptTemplate.from_template(
         "You are a concise assistant. Summarize the product in 1 sentence. Product: {product}"
     )
@@ -38,7 +44,7 @@ def exercise_basic_prompt(llm: ChatGoogleGenerativeAI) -> None:
 
 
 def exercise_structured_output(llm: ChatGoogleGenerativeAI) -> None:
-    section("[SKP-2] 结构化输出（JSON Parser）")
+    section("[SKP-2] Structured Output (JSON Parser)")
     parser = JsonOutputParser()
     prompt = ChatPromptTemplate.from_template(
         """Return valid JSON only with keys: category, risk_level, reason.
@@ -54,26 +60,22 @@ Text: {text}"""
 
 
 def exercise_sequential(llm: ChatGoogleGenerativeAI) -> None:
-    section("[SKP-3] 顺序链（Sequential via LCEL）")
-    translate_prompt = ChatPromptTemplate.from_template("Translate to Chinese: {text}")
+    section("[SKP-3] Sequential Chain (via LCEL)")
     summarize_prompt = ChatPromptTemplate.from_template(
-        "用不超过12个中文字符总结这句话：{text}"
+        "Summarize this sentence in no more than 20 English words: {text}"
     )
 
-    translate_chain = translate_prompt | llm | StrOutputParser()
     summarize_chain = summarize_prompt | llm | StrOutputParser()
 
     source_text = "Smart Bulb can be voice-controlled and scheduled automatically."
-    zh_text = translate_chain.invoke({"text": source_text})
-    short_summary = summarize_chain.invoke({"text": zh_text})
+    short_summary = summarize_chain.invoke({"text": source_text})
 
-    print("原文:", source_text)
-    print("翻译:", zh_text)
-    print("总结:", short_summary)
+    print("Original:", source_text)
+    print("Summary:", short_summary)
 
 
 def exercise_router(llm: ChatGoogleGenerativeAI) -> None:
-    section("[SKP-4] 路由链（不使用已弃用 MultiPromptChain）")
+    section("[SKP-4] Router Chain (without deprecated MultiPromptChain)")
     physics_prompt = ChatPromptTemplate.from_template(
         "You are a physics tutor. Answer briefly with formulas when needed. Q: {question}"
     )
@@ -118,7 +120,7 @@ def exercise_router(llm: ChatGoogleGenerativeAI) -> None:
 
     question = "What is black body radiation?"
     result = branched_chain.invoke({"question": question})
-    print("路由结果问题:", question)
+    print("Routed question:", question)
     print(result)
 
 
@@ -126,13 +128,51 @@ def format_docs(docs) -> str:
     return "\n\n".join(doc.page_content for doc in docs)
 
 
+def resolve_csv_path(csv_path: str) -> str:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        csv_path,
+        os.path.join(script_dir, csv_path),
+        os.path.join(script_dir, "..", csv_path),
+        os.path.join(script_dir, "..", "Week1", csv_path),
+    ]
+
+    seen = set()
+    normalized_candidates = []
+    for path in candidates:
+        absolute_path = os.path.abspath(path)
+        if absolute_path not in seen:
+            seen.add(absolute_path)
+            normalized_candidates.append(absolute_path)
+
+    for path in normalized_candidates:
+        if os.path.exists(path):
+            return path
+
+    searched = "\n - ".join(normalized_candidates)
+    raise FileNotFoundError(
+        "CSV file not found. Checked these paths:\n - " + searched
+    )
+
+
 def exercise_retrieval(llm: ChatGoogleGenerativeAI, csv_path: str = "products.csv") -> None:
-    section("[SKP-5] 文档检索（products.csv 向量检索）")
-    loader = CSVLoader(file_path=csv_path)
+    section("[SKP-5] Document Retrieval (products.csv vector retrieval)")
+    resolved_csv_path = resolve_csv_path(csv_path)
+    loader = CSVLoader(file_path=resolved_csv_path)
     docs = loader.load()
 
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-    vectorstore = DocArrayInMemorySearch.from_documents(docs, embeddings)
+    embedding_backend = "Gemini embeddings"
+    try:
+        vectorstore = InMemoryVectorStore.from_documents(docs, embeddings)
+    except GoogleGenerativeAIError as error:
+        if "RESOURCE_EXHAUSTED" not in str(error):
+            raise
+        print("Embedding quota exceeded; falling back to FakeEmbeddings for this run.")
+        embeddings = FakeEmbeddings(size=768)
+        embedding_backend = "FakeEmbeddings fallback"
+        vectorstore = InMemoryVectorStore.from_documents(docs, embeddings)
+
     retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
 
     rag_prompt = ChatPromptTemplate.from_template(
@@ -158,7 +198,9 @@ Question: {question}
 
     query = "Find electronics between $10 and $20 with decent stock, and explain why."
     result = rag_chain.invoke(query)
-    print("查询:", query)
+    print("CSV:", resolved_csv_path)
+    print("Embeddings:", embedding_backend)
+    print("Query:", query)
     print(result)
 
 
