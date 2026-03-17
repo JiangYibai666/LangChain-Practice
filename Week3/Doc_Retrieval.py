@@ -6,7 +6,7 @@ import sys
 from dotenv import find_dotenv, load_dotenv
 from langchain_community.document_loaders import CSVLoader
 from langchain_community.embeddings import FakeEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
@@ -68,36 +68,38 @@ def resolve_csv_path(csv_path: str) -> str:
 def exercise_retrieval(llm: ChatGoogleGenerativeAI, csv_path: str = "products.csv") -> None:
     section("Document Retrieval (products.csv vector retrieval)")
     resolved_csv_path = resolve_csv_path(csv_path)
-    loader = CSVLoader(file_path=resolved_csv_path)
-    docs = loader.load()
-
+    
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     embedding_backend = "Gemini embeddings"
     
     persist_directory = "./chroma_db"
 
     if os.path.exists(persist_directory):
-        print(f"Persist directory '{persist_directory}' exists. ")
-        shutil.rmtree(persist_directory)
-        
-    try:
-        vectorstore = Chroma.from_documents(
-            documents=docs, 
-            embedding=embeddings, 
-            persist_directory=persist_directory
-        )
-    except GoogleGenerativeAIError as error:
-        if "RESOURCE_EXHAUSTED" not in str(error):
-            raise
-        print("Embedding quota exceeded; falling back to FakeEmbeddings for this run.")
-        embeddings = FakeEmbeddings(size=768)
-        embedding_backend = "FakeEmbeddings fallback"
-        
-        vectorstore = Chroma.from_documents(
-            documents=docs, 
-            embedding=embeddings, 
-            persist_directory=persist_directory
-        )
+        print(f"Found existing ChromaDB at '{persist_directory}'. Loading...")
+        vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+    else:
+        print(f"Creating new ChromaDB from {resolved_csv_path}...")
+        loader = CSVLoader(file_path=resolved_csv_path)
+        docs = loader.load()
+
+        try:
+            vectorstore = Chroma.from_documents(
+                documents=docs, 
+                embedding=embeddings, 
+                persist_directory=persist_directory
+            )
+        except GoogleGenerativeAIError as error:
+            if "RESOURCE_EXHAUSTED" not in str(error):
+                raise
+            print("Embedding quota exceeded; falling back to FakeEmbeddings for this run.")
+            embeddings = FakeEmbeddings(size=768)
+            embedding_backend = "FakeEmbeddings fallback"
+            
+            vectorstore = Chroma.from_documents(
+                documents=docs, 
+                embedding=embeddings, 
+                persist_directory=persist_directory
+            )
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
 
