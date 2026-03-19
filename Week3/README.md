@@ -47,6 +47,19 @@ CHROMA_COLLECTION=skp_docs
 RETRIEVAL_TOP_K=6
 ```
 
+Additional `SKP_New` reliability features:
+- `CSV` 路径自动解析（支持本目录、上级目录、Week3 子目录）。
+- 如果 Gemini Embeddings 出现 `RESOURCE_EXHAUSTED`，自动回退 `FakeEmbeddings`，不中断流程。
+- `ask/chat` 查询将输出检索命中数（如 `[Status] Retrieved X documents`）。
+
+```env
+LLM_MODEL=gemini-2.5-flash
+EMBEDDING_MODEL=models/gemini-embedding-001
+CHROMA_PERSIST_DIR=./data/chroma
+CHROMA_COLLECTION=skp_docs
+RETRIEVAL_TOP_K=6
+```
+
 ## 4) Quick Start (Recommended Order)
 
 ### Step A: Ingest documents into ChromaDB

@@ -8,11 +8,13 @@ from typing import Any, Dict, List, Literal
 from dotenv import find_dotenv, load_dotenv
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import CSVLoader
+from langchain_community.embeddings import FakeEmbeddings
 from langchain_core.documents import Document
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableBranch, RunnableLambda, RunnablePassthrough
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_google_genai._common import GoogleGenerativeAIError
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
@@ -33,6 +35,18 @@ def get_embeddings(model: str | None = None) -> GoogleGenerativeAIEmbeddings:
     """Create embedding model used for vector indexing and retrieval."""
     embedding_model = model or os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-001")
     return GoogleGenerativeAIEmbeddings(model=embedding_model)
+
+
+def get_embeddings_with_fallback(model: str | None = None) -> Any:
+    """Try real Gemini embeddings, fall back to fake embeddings on quota exhaustion."""
+    embedding_model = model or os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-001")
+    try:
+        return GoogleGenerativeAIEmbeddings(model=embedding_model)
+    except GoogleGenerativeAIError as e:
+        if "RESOURCE_EXHAUSTED" in str(e):
+            print("[WARN] Gemini embedding quota耗尽，将回退 FakeEmbeddings。")
+            return FakeEmbeddings(size=768)
+        raise
 
 
 def section(title: str) -> None:
@@ -159,6 +173,31 @@ def format_docs(docs: List[Document]) -> str:
     return "\n\n".join(doc.page_content for doc in docs)
 
 
+def resolve_csv_path(csv_path: str) -> str:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        csv_path,
+        os.path.join(script_dir, csv_path),
+        os.path.join(script_dir, "..", csv_path),
+        os.path.join(script_dir, "..", "Week3", csv_path),
+    ]
+
+    seen = set()
+    normalized_candidates = []
+    for path in candidates:
+        absolute_path = os.path.abspath(path)
+        if absolute_path not in seen:
+            seen.add(absolute_path)
+            normalized_candidates.append(absolute_path)
+
+    for path in normalized_candidates:
+        if os.path.exists(path):
+            return path
+
+    searched = "\n - ".join(normalized_candidates)
+    raise FileNotFoundError("CSV 文件未找到，检查以下路径：\n - " + searched)
+
+
 def stable_id(doc: Document, chunk_index: int) -> str:
     """Generate deterministic IDs to support safe re-ingestion (upsert behavior)."""
     source = doc.metadata.get("source", "unknown_source")
@@ -177,6 +216,7 @@ def ingest_documents(
 ) -> None:
     section("[Week3] INGEST -> ChromaDB")
 
+    csv_path = resolve_csv_path(csv_path)
     loader = CSVLoader(file_path=csv_path)
     docs = loader.load()
     if not docs:
@@ -196,11 +236,20 @@ def ingest_documents(
 
     ids = [stable_id(d, i) for i, d in enumerate(split_docs)]
 
-    embeddings = get_embeddings(embedding_model)
+    embeddings = get_embeddings_with_fallback(embedding_model)
     vectorstore = build_chroma_store(persist_dir, collection_name, embeddings)
 
     start = time.perf_counter()
-    vectorstore.add_documents(split_docs, ids=ids)
+    try:
+        vectorstore.add_documents(split_docs, ids=ids)
+    except GoogleGenerativeAIError as e:
+        if "RESOURCE_EXHAUSTED" in str(e):
+            print("[WARN] GPU额度耗尽。使用 FakeEmbeddings 重新索引（仅本次）。")
+            embeddings = FakeEmbeddings(size=768)
+            vectorstore = build_chroma_store(persist_dir, collection_name, embeddings)
+            vectorstore.add_documents(split_docs, ids=ids)
+        else:
+            raise
     duration = time.perf_counter() - start
 
     print(f"csv_path           : {csv_path}")
@@ -217,8 +266,17 @@ def get_retriever(
     embedding_model: str,
     k: int,
 ):
-    embeddings = get_embeddings(embedding_model)
-    vectorstore = build_chroma_store(persist_dir, collection_name, embeddings)
+    try:
+        embeddings = get_embeddings_with_fallback(embedding_model)
+        vectorstore = build_chroma_store(persist_dir, collection_name, embeddings)
+    except GoogleGenerativeAIError as e:
+        if "RESOURCE_EXHAUSTED" in str(e):
+            print("[WARN] Gemini embedding quota耗尽。改用 FakeEmbeddings 进行检索。")
+            embeddings = FakeEmbeddings(size=768)
+            vectorstore = build_chroma_store(persist_dir, collection_name, embeddings)
+        else:
+            raise
+
     return vectorstore.as_retriever(search_kwargs={"k": k})
 
 
@@ -258,6 +316,8 @@ Question: {question}
     start = time.perf_counter()
     out = chain.invoke({"question": question})
     duration = time.perf_counter() - start
+
+    print(f"[Status] Retrieved {len(out.get('retrieved_docs', []))} documents from ChromaDB.")
 
     source_rows: List[Dict[str, Any]] = []
     for doc in out["retrieved_docs"]:
