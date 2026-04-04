@@ -55,9 +55,3 @@
 - Finalize procure-to-pay agent architecture and role boundaries, including specific responsibilities for RFQ agent, PO creation agent, receiving matching agent, invoice matching agent, payment scheduling agent.
 - Implement resilience iteration for the current version, including procure-to-pay process validation and citation/ID schema supplementation.
 - Demonstrate document-level closed-loop validation for the core business flow (request-approval-order-receipt-payment).
-
----
-
-# Appendix: Overall Project Plan/Progress Table
-
-(See plan_副本.md)
