@@ -2,10 +2,8 @@
 
 ## 1. Milestones Met
 
-1. Finalized the procure-to-pay agent architecture and role boundaries, including specific responsibilities for RFQ agent, PO creation agent, receiving matching agent, invoice matching agent, and payment scheduling agent. Each agent adheres to the single-responsibility principle, with clear task allocation and collaboration modes defined.
-2. Implemented resilience iteration for the current version, including procure-to-pay process validation and supplementation of citation/ID schema to ensure robust data handling and error recovery.
-3. Demonstrated document-level closed-loop validation for the core business flow (request-approval-order-receipt-payment), achieving end-to-end verification of the procure-to-pay cycle.
-4. Completed the technical route (The AI multi-agent architecture for Doxa Connex). Details the system design for embedding a chat-based AI assistant into the existing platform, utilizing multiple specialized agents to answer queries about invoices, entities, procurement, and payments while maintaining the platform's existing authentication and RBAC models without impacting production services. Key elements formulated include:
+1. Demonstrated document-level closed-loop validation for the core business flow (request-approval-order-receipt-payment), achieving end-to-end verification of the procure-to-pay cycle.
+2. Completed the technical route (The AI multi-agent architecture for Doxa Connex). Details the system design for embedding a chat-based AI assistant into the existing platform, utilizing multiple specialized agents to answer queries about invoices, entities, procurement, and payments while maintaining the platform's existing authentication and RBAC models without impacting production services. Key elements formulated include:
    - Architecture overview with independent traffic paths for chat and existing browser flows.
    - Decision summary covering choices for agent runtime (ECS Fargate), WebSocket layer (AWS API Gateway), agent communication (A2A protocol), LLM integration (AWS Bedrock with Claude and Titan models), RAG (Pinecone vector database), and data storage (Aurora PostgreSQL Serverless v2).
    - User flow descriptions for connection establishment, message handling, token refresh, and session recovery during task restarts.
@@ -44,20 +42,14 @@
 
 ## 1. Work assignment
 
-- Mark and Neville: Complete business logic proposal formulation, including detailed Concierge and sub-agent interaction flows, and finalize sub-platform business process understanding.
-- Yibai and SunRui: Deepen understanding of database structures and complete agent list and responsibilities definition.
-- Technical expert team (Anand, Gota, SunRui, Yibai): Continue first-phase infrastructure setup, including orchestrator agent development and frontend WebSocket client implementation.
-- Access team: Confirm all infrastructure access requirements and provide necessary credentials.
-- Project lead and Nabil: Coordinate all parties, drive project progress, and prepare for second-phase agent development.
+- Deepen understanding of database structures and complete agent list and responsibilities definition.
+- Complete business logic proposal formulation, including detailed Concierge and sub-agent interaction flows, and finalize sub-platform business process understanding.
+- Continue first-phase infrastructure setup, including orchestrator agent development and frontend WebSocket client implementation.
 
 ## 2. Milestones to be met
 
 - Provision API Gateway WebSocket API + Lambda authorizer.
 - Set up ECS Fargate cluster + Cloud Map namespace.
-- Deploy `zuul-gateway-internal` K8s Service + internal NLB + Route 53 private zone.
 - Provision Aurora PostgreSQL Serverless v2 + RDS Proxy.
 - Run LangGraph checkpoint migration.
 - Enable AWS Bedrock model access + create VPC endpoint.
-- Build orchestrator agent skeleton (connect / message / disconnect).
-- Frontend WebSocket client, implement ping and auto-reconnect.</content>
-<parameter name="filePath">/Users/kyle/Documents/Doxa/LangChain-Practice/week6/week6_report.md
