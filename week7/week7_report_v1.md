@@ -47,7 +47,7 @@
 
 ## 1. Work Assignment
 
-- Yibai & Rui: prioritize Phase 1 infrastructure implementation, including API Gateway WebSocket, ECS Fargate, internal NLB, Route 53 private zone, and Aurora Serverless.
+- Prioritize Phase 1 infrastructure implementation, including API Gateway WebSocket, ECS Fargate, internal NLB, Route 53 private zone, and Aurora Serverless.
 - Start building the Orchestrator agent skeleton (connect / message / disconnect) and prepare the first agent’s A2A message card and discovery mechanism.
 - Complete the internal VPC path and JWT passthrough design review, and validate the service call chain from agents to Zuul Gateway.
 - Keep daily synchronization with the access team, track resource admission, Phase 1 progress, and risk mitigation measures.
@@ -57,25 +57,11 @@
 1. Complete the minimum viable environment for Phase 1:
    - API Gateway WebSocket API + Lambda authorizer
    - ECS Fargate cluster + Cloud Map namespace
-   - `zuul-gateway-internal` private K8s Service + internal NLB + Route 53 private DNS
-   - Aurora PostgreSQL Serverless v2 + RDS Proxy
    - Bedrock VPC endpoint and model access validation
 
 2. Build the Orchestrator agent skeleton and verify basic connectivity:
    - support connect / message / disconnect lifecycle events
    - support WebSocket client ping and auto-reconnect
 
-3. Start Phase 2 with the first agent and RAG workflow:
-   - complete the initial A2A interface implementation for invoice/flight agents
-   - finalize Pinecone index and metadata schema design
-   - start the document embedding pipeline (document slicing → Bedrock Titan embedding → Pinecone)
-
-4. Continue tracking the Week 6 key tasks:
-   - business flow understanding and database structure confirmation
-   - agent responsibility definition and service call boundary confirmation
-   - closure of access permissions and environment admission issues
-
----
-
-
-
+3. Start with the first agent and RAG workflow:
+   - complete the initial A2A interface implementation for agents
