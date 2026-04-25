@@ -6,7 +6,7 @@
 
 2. **Built and ran A2A_POC end-to-end** in a local environment, validating the multi-agent protocol and orchestration design:
    - **A2A Protocol Layer**: defined Task, Message, and AgentCard data structures; implemented an in-process message router that replaces HTTP while preserving full A2A protocol semantics.
-   - **Agent Layer**: built three agents — Orchestrator (LangGraph `StateGraph`, intent parsing, task routing, result aggregation), Flight Agent (AgentCard + `search_flights` Tool), and Hotel Agent (AgentCard + date-window validation + `search_hotels` Tool).
+   - **Agent Layer**: built three agents — Orchestrator, Flight Agent and Hotel Agent.
    - **Tool Layer**: implemented two LangChain tools that query mock JSON data, simulating the pattern to be replicated for production Doxa service calls.
    - **Database Layer**: set up SQLAlchemy async engine against PostgreSQL, defined session/agent_task/result tables, and wired up a LangGraph checkpointer.
    - **Frontend Dashboard**: built a local UI covering conversation view, A2A flow visualization, and a real-time log panel.
@@ -19,11 +19,11 @@
 
 ## 2. Milestones Missed
 
-1. **Phase 1 cloud infrastructure provisioning** (API Gateway WebSocket, ECS Fargate cluster, internal NLB, Route 53 private zone, Aurora PostgreSQL Serverless v2, Bedrock VPC endpoint) was not completed.
+1. Cloud infrastructure provisioning (API Gateway WebSocket, ECS Fargate cluster, internal NLB, Route 53 private zone, Aurora PostgreSQL Serverless v2, Bedrock VPC endpoint) was not completed.
    - **Cause**: Infrastructure access permissions remain partially unconfirmed; the team decided to front-load the local POC to de-risk A2A protocol design and LangGraph orchestration patterns before committing to cloud resource provisioning.
    - **Resolution**: Now that the POC has validated core design assumptions, Phase 1 cloud provisioning becomes the immediate priority for Week 9. Access requests for ECS, Aurora, and Bedrock VPC endpoints will be escalated with the confirmed POC as justification.
 
-2. **Production Orchestrator agent skeleton** (supporting live `connect / message / disconnect` lifecycle against AWS API Gateway WebSocket) was not started.
+2. Production Orchestrator agent skeleton was not started.
    - **Cause**: Blocked by cloud infrastructure not yet being available; the local POC used in-process routing rather than real WebSocket flows.
    - **Resolution**: Phase 1 infrastructure deployment in Week 9 will unblock this; the POC orchestrator code will be directly ported as the skeleton, minimizing rework.
 
@@ -58,20 +58,19 @@
 ## 1. Work Assignment
 
 - **Phase 1 cloud infrastructure provisioning** (highest priority, unblocks all subsequent work):
-  - Provision API Gateway WebSocket API with Lambda JWT authorizer (`$connect` / `sendMessage` / `$disconnect` routes).
-  - Set up ECS Fargate cluster + Cloud Map private namespace (`agents.local`).
-  - Deploy `zuul-gateway-internal` Kubernetes Service (internal NLB) + Route 53 private hosted zone record (`api-internal.doxa-holdings.com`).
+  - Provision API Gateway WebSocket API with Lambda JWT authorizer.
+  - Set up ECS Fargate cluster + Cloud Map private namespace.
+  - Deploy Kubernetes Service (internal NLB) + Route 53 private hosted zone record.
   - Provision Aurora PostgreSQL Serverless v2 + RDS Proxy; run LangGraph checkpoint schema migrations.
   - Enable Bedrock model access + create VPC endpoint for ECS-to-Bedrock communication.
 
 - **Port A2A_POC Orchestrator to production skeleton**:
   - Adapt the Orchestrator from in-process A2A routing to real HTTP-based A2A calls via Cloud Map DNS.
-  - Implement `POST /connect`, `POST /message`, `POST /disconnect` lifecycle endpoints.
   - Wire up connection state persistence to Aurora (ported from A2A_POC database layer).
   - Front-end WebSocket client: implement ping keepalive and auto-reconnect.
 
 - **Validate the internal VPC call chain**:
-  - Deploy a minimal ECS task that calls `http://api-internal.doxa-holdings.com` with a real user JWT and confirms Zuul's RBAC chain returns a 200.
+  - Deploy a minimal ECS task with a real user JWT and confirms Zuul's RBAC chain returns a 200.
 
 - **Business domain alignment for Phase 2 preparation**:
   - Sync with the business/backend team to document invoice and entity API contracts (endpoints, request/response shapes, RBAC requirements).
@@ -84,7 +83,6 @@
    - Bedrock VPC endpoint reachable from ECS tasks; Bedrock Claude model returns a test completion.
 
 2. **Internal NLB + Route 53 private zone verified**:
-   - `api-internal.doxa-holdings.com` resolves within the VPC.
    - A test ECS task successfully calls a Zuul-proxied service endpoint using a valid JWT and receives a non-401 response.
 
 3. **Production Orchestrator skeleton deployed to ECS**:
