@@ -1,0 +1,83 @@
+
+<style>
+  h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  .tree{font-family:'JetBrains Mono','Fira Mono',monospace;font-size:12px;line-height:1;padding:20px 0}
+  .row{display:flex;align-items:baseline;padding:3px 20px 3px;gap:0;border-left:2px solid transparent;transition:background 0.1s}
+  .row:hover{background:var(--color-background-secondary)}
+  .sym{color:var(--color-text-tertiary);white-space:pre;flex-shrink:0}
+  .fname{font-weight:500;white-space:nowrap}
+  .fname.dir{color:var(--color-text-primary)}
+  .fname.fe{color:#a78bfa}
+  .fname.boot{color:var(--color-text-secondary)}
+  .fname.agent{color:#34d399}
+  .fname.a2a{color:#a78bfa}
+  .fname.db{color:#60a5fa}
+  .fname.tool{color:#fb923c}
+  .fname.data{color:var(--color-text-tertiary)}
+  .fname.cfg{color:var(--color-text-tertiary)}
+  .comment{color:var(--color-text-tertiary);font-size:11px;margin-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:1px 6px;border-radius:3px;margin-left:8px;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+  .b-fe{background:rgba(167,139,250,0.15);color:#a78bfa}
+  .b-boot{background:rgba(180,178,169,0.15);color:var(--color-text-secondary)}
+  .b-agent{background:rgba(52,211,153,0.15);color:#34d399}
+  .b-a2a{background:rgba(167,139,250,0.2);color:#a78bfa}
+  .b-db{background:rgba(96,165,250,0.15);color:#60a5fa}
+  .b-tool{background:rgba(251,146,60,0.15);color:#fb923c}
+  .section-label{font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--color-text-tertiary);padding:14px 20px 6px;border-top:1px solid var(--color-border-tertiary);margin-top:4px}
+  .section-label:first-child{border-top:none;margin-top:0}
+  .row.depth1{padding-left:36px}
+  .row.depth2{padding-left:52px}
+  .row.depth3{padding-left:68px}
+</style>
+
+<h2 class="sr-only">A2A POC 完整项目文件树，按层次分组标注每个文件的职责</h2>
+
+<div class="tree">
+
+  <div class="section-label">根目录</div>
+  <div class="row"><span class="sym">  </span><span class="fname dir">a2a-poc/</span></div>
+
+  <div class="section-label">前端层</div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname fe">frontend/</span><span class="badge b-fe">frontend</span></div>
+  <div class="row depth2"><span class="sym">└─ </span><span class="fname fe">index.html</span><span class="comment">// 仪表盘 UI · 对话 · A2A流可视化 · 日志面板</span></div>
+
+  <div class="section-label">启动 + 路由层</div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname boot">main.py</span><span class="badge b-boot">entry</span><span class="comment">// 唯一入口：init DB → launcher → CLI loop</span></div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname boot">cli.py</span><span class="badge b-boot">cli</span><span class="comment">// readline 自然语言交互循环</span></div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname boot">launcher.py</span><span class="badge b-boot">launcher</span><span class="comment">// asyncio 统一启动三个智能体服务</span></div>
+
+  <div class="section-label">A2A 协议层</div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname dir">a2a/</span><span class="badge b-a2a">protocol</span></div>
+  <div class="row depth2"><span class="sym">├─ </span><span class="fname a2a">protocol.py</span><span class="comment">// Task · Message · AgentCard 数据结构定义</span></div>
+  <div class="row depth2"><span class="sym">└─ </span><span class="fname a2a">router.py</span><span class="comment">// 进程内消息路由，替代 HTTP，保留协议语义</span></div>
+
+  <div class="section-label">智能体层</div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname dir">agents/</span><span class="badge b-agent">agents</span></div>
+  <div class="row depth2"><span class="sym">├─ </span><span class="fname agent">orchestrator.py</span><span class="comment">// LangGraph StateGraph · 意图解析 · 任务路由 · 结果聚合</span></div>
+  <div class="row depth2"><span class="sym">├─ </span><span class="fname agent">flight_agent.py</span><span class="comment">// 机票智能体 · AgentCard · search_flights Tool</span></div>
+  <div class="row depth2"><span class="sym">└─ </span><span class="fname agent">hotel_agent.py</span><span class="comment">// 酒店智能体 · AgentCard · 时间校验 · search_hotels Tool</span></div>
+
+  <div class="section-label">工具层</div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname dir">tools/</span><span class="badge b-tool">tools</span></div>
+  <div class="row depth2"><span class="sym">├─ </span><span class="fname tool">flight_search.py</span><span class="comment">// LangChain Tool：查询 Mock 航班数据</span></div>
+  <div class="row depth2"><span class="sym">└─ </span><span class="fname tool">hotel_search.py</span><span class="comment">// LangChain Tool：时间过滤 + 查询 Mock 酒店数据</span></div>
+
+  <div class="section-label">数据库层</div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname dir">db/</span><span class="badge b-db">database</span></div>
+  <div class="row depth2"><span class="sym">├─ </span><span class="fname db">models.py</span><span class="comment">// SQLAlchemy 表定义：sessions · agent_tasks · results</span></div>
+  <div class="row depth2"><span class="sym">├─ </span><span class="fname db">session.py</span><span class="comment">// PostgreSQL 连接池 · async engine</span></div>
+  <div class="row depth2"><span class="sym">└─ </span><span class="fname db">state_store.py</span><span class="comment">// LangGraph checkpointer 对接 · 状态读写封装</span></div>
+
+  <div class="section-label">Mock 数据</div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname dir">mock_data/</span><span class="badge b-tool">mock</span></div>
+  <div class="row depth2"><span class="sym">├─ </span><span class="fname data">flights.json</span><span class="comment">// 新加坡↔上海 航班时刻 · 价格 · 舱位</span></div>
+  <div class="row depth2"><span class="sym">└─ </span><span class="fname data">hotels.json</span><span class="comment">// 上海酒店 · 区域 · 价格 · 入住时间偏移</span></div>
+
+  <div class="section-label">配置 + 基础设施</div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname cfg">.env</span><span class="comment">// DATABASE_URL · LLM_API_KEY · 环境变量</span></div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname cfg">docker-compose.yml</span><span class="comment">// PostgreSQL 容器定义，一行拉起</span></div>
+  <div class="row depth1"><span class="sym">├─ </span><span class="fname cfg">requirements.txt</span><span class="comment">// langchain · langgraph · fastapi · sqlalchemy · asyncpg</span></div>
+  <div class="row depth1"><span class="sym">└─ </span><span class="fname cfg">README.md</span><span class="comment">// 启动说明 · 架构概览</span></div>
+
+</div>
